@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     volumes:
       - '${DATA_PATH}:/data'
-      - './litestream.yml:/etc/litestream.yml'
     environment:
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
@@ -13,7 +12,26 @@ services:
       - R2_BUCKET=${R2_BUCKET}
       - R2_PATH=${R2_PATH}
       - SYNC_INTERVAL=${SYNC_INTERVAL}
-    command: replicate
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        cat > /tmp/litestream.yml << EOF
+        access-key-id: $${R2_ACCESS_KEY_ID}
+        secret-access-key: $${R2_SECRET_ACCESS_KEY}
+        dbs:
+          - path: /data/data.db
+            meta-path: /tmp/litestream-meta
+            replica:
+              type: s3
+              bucket: $${R2_BUCKET}
+              path: $${R2_PATH}
+              endpoint: $${R2_ENDPOINT}
+              region: auto
+              sync-interval: $${SYNC_INTERVAL}
+              auto-recover: true
+        EOF
+        exec litestream replicate -config /tmp/litestream.yml
     deploy:
       resources:
         limits:
