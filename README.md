@@ -44,13 +44,16 @@ docker compose up
 | `R2_ENDPOINT` | R2 account endpoint | ← same → | ← same → |
 | `R2_BUCKET` | R2 bucket name | ← same → | ← same → |
 | `R2_PATH` | Path inside bucket | `staging` | `production` |
-| `DATA_PATH` | Host path to SQLite data | `/data/staging` | `/data/production` |
 | `SYNC_INTERVAL` | Replication frequency | `60s` | `10s` |
 
 ---
 
 ## 🚢 Coolify Deployment
 
+> ⚠️ Coolify does not substitute environment variables in volume paths for Docker Compose deployments.
+> The bind mount `source` path must be hardcoded and changed per deployment via Coolify's compose editor.
+
 1. **Add new resource** → connect git repo → select **Docker Compose** build pack → point to `docker-compose.yml`
-2. **Set environment variables** in the Coolify UI
-3. **Deploy** — repeat with different env vars for staging vs production
+2. **Edit the compose file in Coolify** — change `source: /data/staging` to match your environment's data path
+3. **Set environment variables** in the Coolify UI
+4. **Deploy** — repeat with a different source path and env vars for each environment
