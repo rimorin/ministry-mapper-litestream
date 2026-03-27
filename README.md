@@ -1,7 +1,9 @@
 # 🗺️ Ministry Mapper — Litestream Backup
 
 > Continuously replicates a SQLite database to Cloudflare R2 using [Litestream](https://litestream.io).
-> Environment-agnostic — deploy once for staging, once for production.
+> Environment-agnostic — deploy once for dev, staging, and production.
+
+> **Platform note:** This setup is configured for [Coolify](https://coolify.io). The deployment steps and workarounds are Coolify-specific, but the core principle — one compose file per environment, inline litestream config, bind mount to the data directory — applies to any Docker-based platform.
 
 ---
 
@@ -37,23 +39,36 @@ docker compose up
 
 ## 🔐 Environment Variables
 
-| Variable | Description | Staging | Production |
-|----------|-------------|:-------:|:----------:|
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key | ← same → | ← same → |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret | ← same → | ← same → |
-| `R2_ENDPOINT` | R2 account endpoint | ← same → | ← same → |
-| `R2_BUCKET` | R2 bucket name | ← same → | ← same → |
-| `R2_PATH` | Path inside bucket | `staging` | `production` |
-| `SYNC_INTERVAL` | Replication frequency | `60s` | `10s` |
+| Variable | Description | Dev | Staging | Production |
+|----------|-------------|:---:|:-------:|:----------:|
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key | ← same → | ← same → | ← same → |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret | ← same → | ← same → | ← same → |
+| `R2_ENDPOINT` | R2 account endpoint | ← same → | ← same → | ← same → |
+| `R2_BUCKET` | R2 bucket name | ← same → | ← same → | ← same → |
+| `R2_PATH` | Path inside bucket | `dev` | `staging` | `production` |
+| `SYNC_INTERVAL` | Replication frequency | `300s` | `60s` | `10s` |
 
 ---
 
 ## 🚢 Coolify Deployment
 
-> ⚠️ Coolify does not substitute environment variables in volume paths for Docker Compose deployments.
-> The bind mount `source` path must be hardcoded and changed per deployment via Coolify's compose editor.
+Each environment gets its own Coolify resource pointing to its respective compose file. All shared litestream config lives in `docker-compose.base.yml` — edit only that file when updating replication settings.
 
-1. **Add new resource** → connect git repo → select **Docker Compose** build pack → point to `docker-compose.yml`
-2. **Edit the compose file in Coolify** — change `source: /data/staging` to match your environment's data path
+| Environment | Compose File | Data Path |
+|-------------|-------------|-----------|
+| Dev | `docker-compose.dev.yml` | `/data/dev` |
+| Staging | `docker-compose.staging.yml` | `/data/staging` |
+| Production | `docker-compose.production.yml` | `/data/production` |
+
+1. **Add new resource** → connect git repo → select **Docker Compose** build pack
+2. **Set the compose file path** to the environment's file (see table above)
 3. **Set environment variables** in the Coolify UI
-4. **Deploy** — repeat with a different source path and env vars for each environment
+4. **Deploy**
+
+### Known Coolify Limitations
+
+> **🔒 Env vars blocked in volume paths** ([issue #7127](https://github.com/coollabsio/coolify/issues/7127))
+> Since v4.0.0-beta.441, Coolify blocks `${VAR}` in bind mount source paths as a security measure against command injection. `${DATA_PATH}:/data` is silently treated as a named Docker volume instead of a bind mount, so the container never sees your data directory. **Workaround:** hardcode the path per environment in separate compose files (current approach).
+
+> **🔍 Env vars not auto-detected from `extends` base file**
+> Coolify only scans the compose file you point it to for `${VAR}` references — it does not follow `extends` into `docker-compose.base.yml`. This means env vars defined only in the base file won't appear in Coolify's UI. **Workaround:** the `environment:` block is intentionally repeated in each env file so Coolify surfaces them for editing.
