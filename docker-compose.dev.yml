@@ -11,6 +11,10 @@ services:
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
       - R2_ENDPOINT=${R2_ENDPOINT}
-      - R2_BUCKET=${R2_BUCKET}
-      - R2_PATH=${R2_PATH}
-      - SYNC_INTERVAL=${SYNC_INTERVAL}
+      - R2_PATH=dev
+      - SYNC_INTERVAL=300s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M

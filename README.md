@@ -39,14 +39,19 @@ docker compose up
 
 ## 🔐 Environment Variables
 
-| Variable | Description | Dev | Staging | Production |
-|----------|-------------|:---:|:-------:|:----------:|
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key | ← same → | ← same → | ← same → |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret | ← same → | ← same → | ← same → |
-| `R2_ENDPOINT` | R2 account endpoint | ← same → | ← same → | ← same → |
-| `R2_BUCKET` | R2 bucket name | ← same → | ← same → | ← same → |
-| `R2_PATH` | Path inside bucket | `dev` | `staging` | `production` |
-| `SYNC_INTERVAL` | Replication frequency | `300s` | `60s` | `10s` |
+| Variable | Description | All Envs |
+|----------|-------------|:--------:|
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key | ← same → |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret | ← same → |
+| `R2_ENDPOINT` | R2 account endpoint | ← same → |
+
+The following are **hardcoded** in each compose file (not env vars):
+
+| Setting | Dev | Staging | Production |
+|---------|:---:|:-------:|:----------:|
+| `R2_BUCKET` | `mm-pb-backups` | ← same → | ← same → |
+| `R2_PATH` | `dev` | `staging` | `production` |
+| `SYNC_INTERVAL` | `300s` | `60s` | `10s` |
 
 ---
 
