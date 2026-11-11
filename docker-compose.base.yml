@@ -3,23 +3,9 @@ services:
     image: 'litestream/litestream:0.5.18'
     user: root
     restart: unless-stopped
-    # On SIGTERM Litestream flushes pending changes for up to 30s
-    # (shutdown-sync-timeout). Docker's default 10s grace period would
-    # SIGKILL it mid-upload, which can corrupt local state and force a reset.
+    # Litestream takes up to 30s to flush pending uploads on shutdown.
     stop_grace_period: 40s
-    environment:
-      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
-      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-      - R2_ENDPOINT=${R2_ENDPOINT}
-      - R2_BUCKET=mm-pb-backups
     entrypoint: /bin/sh
-    # Notes on the generated config:
-    # - meta-path is intentionally unset: the default (/data/.data.db-litestream)
-    #   lives on the bind mount, so Litestream's tracking state survives
-    #   container re-creation on every Coolify deploy. Do not move it to /tmp.
-    # - restore-if-db-not-exists restores data.db from R2 on startup when the
-    #   file is missing (fresh host). See "Restoring" in README.
-    # - snapshot.retention is the point-in-time restore window.
     command:
       - -c
       - |
@@ -28,7 +14,7 @@ services:
         secret-access-key: $${R2_SECRET_ACCESS_KEY}
         snapshot:
           interval: 24h
-          retention: $${SNAPSHOT_RETENTION:-24h}
+          retention: $${SNAPSHOT_RETENTION}
         dbs:
           - path: /data/data.db
             restore-if-db-not-exists: true
