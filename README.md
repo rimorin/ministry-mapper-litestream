@@ -16,10 +16,10 @@ Litestream solves this by continuously streaming SQLite WAL changes to remote ob
 | Benefit | Details |
 |---------|---------|
 | ⚡ **Continuous replication** | Changes streamed as they happen, not on a cron schedule |
-| 🕐 **Point-in-time restore** | Recover the database to any point in its history |
+| 🕐 **Point-in-time restore** | Recover the database to any point within the retention window (7 days in production) |
 | 🔌 **Zero app changes** | Runs as a sidecar; your app reads/writes SQLite normally |
 | 💸 **Low cost** | R2 has no egress fees, ideal for frequent small writes |
-| 🚀 **Fast recovery** | Restore and resume in seconds on a new server |
+| 🚀 **Fast recovery** | Auto-restores on a new server when `data.db` is missing — see **Restoring** below |
 
 ---
 
@@ -52,6 +52,9 @@ The following are **hardcoded** in each compose file (not env vars):
 | `R2_BUCKET` | `mm-pb-backups` | ← same → | ← same → |
 | `R2_PATH` | `dev` | `staging` | `production` |
 | `SYNC_INTERVAL` | `300s` | `60s` | `10s` |
+| `SNAPSHOT_RETENTION` | `24h` | `72h` | `168h` |
+
+`SYNC_INTERVAL` is the worst-case data loss window (how often changes are uploaded). `SNAPSHOT_RETENTION` is how far back you can restore. Durations only accept `s`/`m`/`h` — use `168h` for a week.
 
 ---
 
@@ -77,3 +80,39 @@ Each environment gets its own Coolify resource pointing to its respective compos
 
 > **🔍 Env vars not auto-detected from `extends` base file**
 > Coolify only scans the compose file you point it to for `${VAR}` references — it does not follow `extends` into `docker-compose.base.yml`. This means env vars defined only in the base file won't appear in Coolify's UI. **Workaround:** the `environment:` block is intentionally repeated in each env file so Coolify surfaces them for editing.
+
+---
+
+## ♻️ Restoring
+
+### On a new host
+
+Litestream restores `data.db` from R2 on startup **only if the file does not exist** (`restore-if-db-not-exists`). It checks once, at startup, so the order matters:
+
+1. Make sure the environment's data directory (e.g. `/data/production`) exists and contains **no** `data.db`.
+2. Deploy the **Litestream** resource first, with PocketBase stopped.
+3. Check the Litestream logs: you should see `attempting restore before replication` and no `restore failed`. (A brand-new environment with no backups logs `no backup found, starting fresh`.)
+4. Start PocketBase.
+
+> **⚠️ Don't start PocketBase first.** It will create an empty `data.db`, Litestream will skip the restore, and it will start backing up the empty database to the same R2 path. If that happens, stop both, delete `data.db*` and `.data.db-litestream` from the data directory, and start again from step 2.
+
+### To a point in time
+
+Restore to a side file first, then swap it in with both services stopped:
+
+```bash
+# 1. Restore a copy (runs inside the running Litestream container; RFC 3339 timestamp, UTC)
+docker exec <litestream-container> litestream restore -config /tmp/litestream.yml \
+  -timestamp 2026-11-10T12:00:00Z -integrity-check quick \
+  -o /data/restored.db /data/data.db
+
+# 2. Stop PocketBase and Litestream, then on the host (example: production):
+cd /data/production
+mkdir pre-restore && mv data.db* pre-restore/   # keeps data.db, -wal and -shm together
+rm -rf .data.db-litestream                      # clear Litestream's tracking state (= litestream reset)
+mv restored.db data.db
+
+# 3. Start Litestream, then PocketBase.
+```
+
+Restores are limited to the `SNAPSHOT_RETENTION` window for that environment.

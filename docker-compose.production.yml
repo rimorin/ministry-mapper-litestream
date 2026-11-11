@@ -13,6 +13,7 @@ services:
       - R2_ENDPOINT=${R2_ENDPOINT}
       - R2_PATH=production
       - SYNC_INTERVAL=10s
+      - SNAPSHOT_RETENTION=168h
     deploy:
       resources:
         limits:

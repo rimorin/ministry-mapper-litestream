@@ -13,6 +13,7 @@ services:
       - R2_ENDPOINT=${R2_ENDPOINT}
       - R2_PATH=staging
       - SYNC_INTERVAL=60s
+      - SNAPSHOT_RETENTION=72h
     deploy:
       resources:
         limits:
